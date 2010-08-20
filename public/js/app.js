@@ -4,12 +4,21 @@ Jaml.register('item', function(item) {
   );
 });
 
+function hideIfTrue (val) {
+  return val ? "display: none;" : ""
+}
+
+
 Jaml.register('main', function(data) {
   div({cls: 'main'},
     h1("Your Shopping Cart"),
     p(
       span("Currently "),
       span({id: 'online_status'}, data.status)
+    ),
+    
+    p(
+      span({cls: 'update'}, "Viewing cached data. Retrieving up to date info...")
     ),
     
     ul({cls: 'items'},
@@ -46,10 +55,13 @@ App = function ($) {
     }    
   }
 
-  var draw = function () {
-    var items = getLocalItems();
-    $('.container').html(Jaml.render('main', {items: items, status: onlineStatus()}));
-    $('#some_text_input').focus();
+  var renderMainTemplate = function () {
+    var items = getLocalItems();    
+    var templateContext = {
+      items: items, 
+      status: onlineStatus(),
+    };
+    return Jaml.render('main', templateContext);
   };
 
   var loadRemoteItems = function () {
@@ -58,55 +70,67 @@ App = function ($) {
       type: 'GET',
       complete: function (xhr, textStatus) {
         if (xhr.status === 200) {      
+          console.log("Got response: " + xhr.status);
           var items = JSON.parse(xhr.responseText);
-          setLocalItems(items);
+          setTimeout(function () {
+            setLocalItems(items);            
+            $('.update').html("Updated info available. <a class='refresh' href=''>Refresh</a>");
+            $('.refresh').click(function () {
+              $('.update').remove();
+              $('.items').html(Jaml.render('item', items));
+              return false;
+            });
+          }, 3000);
         } else {
-          console.log("Failed to load items from server");
+          $('.update').html("Offline. Unable to retrieve latest info right now.");
         }
-        setTimeout(function () {
-          draw();
-        }, 0);
       }
     });
   };
   
   var getLocalItems = function() {
-    var db = JSON.parse(localStorage.getItem("items") || "{}");
-    var items = [];
-    for (var id in db) {
-      var item = db[id];
-      items.push(item);
+    var db = JSON.parse(localStorage.getItem("items"));
+    if (db) {
+      var items = [];
+      for (var id in db) {
+        var item = db[id];
+        items.push(item);
+      }
+      return items;
+    } else {
+      return [];
     }
-    return items;
   };
 
   var setLocalItems = function (items) {
-    console.log(items);
     var db = {};
     $.each(items, function(index, item) {
-      console.log("Add item: " + item.id);
-      console.log(item);
       db[item.id] = item;
     });
     localStorage.setItem("items", JSON.stringify(db));
   };
 
   var loadItem = function (id, callback) {
-    $.ajax({
-      url: '/api/items/' + id,
-      type: 'GET',
-      complete: function(xhr, textStatus) {
-        if (xhr.status === 200) {
-          console.log("Loaded item: " + xhr.responseText);
-          var item = JSON.parse(xhr.responseText);
-          setLocalItem(item);
-          callback(item);
-        } else {
-          console.log("Failed to load item from server.");
-          callback(getLocalItem(id));
+    if (navigator.onLine) {
+      $.ajax({
+        url: '/api/items/' + id,
+        type: 'GET',
+        complete: function(xhr, textStatus) {
+          if (xhr.status === 200) {
+            console.log("Loaded item: " + xhr.responseText);
+            var item = JSON.parse(xhr.responseText);
+            setLocalItem(item);
+            callback(item);
+          } else {
+            console.log("Failed to load item from server.");
+            callback(getLocalItem(id));
+          }
         }
-      }
-    });
+      });  
+    } else {
+      callback(getLocalItem(id));
+    }
+    
   };
 
   var database = function () {
@@ -123,7 +147,12 @@ App = function ($) {
     return database()[id];
   };
 
-  var setRemoteItem = function (item, opts) {
+  var saveItem = function (item, opts) {
+    setLocalItem(item);
+    setRemoteItem(item, opts);
+  }
+  
+  var setRemoteItem = function (item, opts) {    
     $.ajax({
       url: '/api/items/' + item.id,
       type: 'POST',
@@ -158,6 +187,13 @@ App = function ($) {
       
       this.get('#/', function (context) {
         this.title("Shopping Cart");
+        
+        // Display whatever is currently in local storage
+        this.swap(renderMainTemplate());
+        
+        $('#some_text_input').focus();
+        
+        // Request the latest data from the server
         loadRemoteItems();
       });
 
@@ -178,7 +214,7 @@ App = function ($) {
         
         var that = this;
         
-        setRemoteItem(item, {
+        saveItem(item, {
           success: function() {
             that.redirect('#/');
           },
@@ -194,11 +230,12 @@ App = function ($) {
         this.redirect('#/');
       });
       
-      this.bind('text-updated', function () {
-        loadRemoteItems();
-      });
+      // this.bind('updated-data-available', function () {
+      //   draw({upToDate: true});
+      // });
       
       this.bind('run', function () {
+        
         // Fired when the app is run. Good place for initialization
       });
     });
@@ -250,7 +287,10 @@ App = function ($) {
       $(function() {        
         subscribeToOnlineStatusEvents();
         initGears();
-        initSammy().run('#/');
+        var app = initSammy();
+        setTimeout(function () {
+          app.run('#/')
+        }, 2000);
       });
     }
   }

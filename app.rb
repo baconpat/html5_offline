@@ -20,11 +20,30 @@ end
 # Tell Sinatra we will use Haml for templates
 set :haml, {:format => :xhtml }
 
-# HTML5 requires the cache manifest have the following MIME type
-mime_type :cache, 'text/cache-manifest'
-
 get '/' do
   haml :index
+end
+
+get '/manifest.cache' do
+  # HTML5 requires the cache manifest have the following MIME type
+  content_type 'text/cache-manifest', :charset => 'utf-8'
+  <<-EOS
+CACHE MANIFEST
+# v7
+js/jquery.js
+js/Jaml-all.js
+js/sammy/sammy.js
+js/sammy/plugins/sammy.title.js
+js/app.js
+js/gears_init.js
+/
+
+NETWORK:
+/api
+
+FALLBACK:
+/ offline
+  EOS
 end
 
 # Page to show when user is offline and tries to access 
