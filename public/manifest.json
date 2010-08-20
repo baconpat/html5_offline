@@ -1,0 +1,13 @@
+{
+  "betaManifestVersion": 2,
+  "version": "1.4",
+  "entries": [
+      { "url": "home"},
+      { "url": "js/jquery.js"},
+      { "url": "js/Jaml-all.js"},
+      { "url": "js/sammy/sammy.js"},
+      { "url": "js/sammy/plugins/sammy.title.js"},
+      { "url": "js/app.js"},
+      { "url": "js/gears_init.js"}
+    ]
+}

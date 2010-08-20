@@ -1,0 +1,15 @@
+CACHE MANIFEST
+# v1
+js/jquery.js
+js/Jaml-all.js
+js/sammy/sammy.js
+js/sammy/plugins/sammy.title.js
+js/app.js
+js/gears_init.js
+/
+
+NETWORK:
+/api
+
+FALLBACK:
+/ offline
