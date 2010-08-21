@@ -1,55 +1,35 @@
-Jaml.register('item', function(item) {
-  li({cls: 'item'},
-    a({href: '#/items/' + item.id}, item.text)
-  );
-});
+// Extrememly useful information about the state of the application cache //////////
+if (window.applicationCache) {
+  
+  var appCache = window.applicationCache;
+  var handleCacheEvent = function (e) {
+    console.log("Cache Event Handled - " + e.type);
+    // console.log(e);
+    if (e.type === 'cached' || e.type === 'updateready') {
+      console.log('Your computer is ready for offline use.');
+    }
+  };
 
-function hideIfTrue (val) {
-  return val ? "display: none;" : ""
+  var handleCacheError = function (e) {
+    console.log("Cache Error Handled");
+    // console.log(e);
+  };
+
+  appCache.addEventListener('cached', handleCacheEvent, false);
+  appCache.addEventListener('checking', handleCacheEvent, false);
+  appCache.addEventListener('downloading', handleCacheEvent, false);
+  appCache.addEventListener('error', handleCacheError, false);
+  appCache.addEventListener('noupdate', handleCacheEvent, false);
+  appCache.addEventListener('obsolete', handleCacheEvent, false);
+  appCache.addEventListener('progress', handleCacheEvent, false);
+  appCache.addEventListener('updateready', handleCacheEvent, false);
 }
-
-
-Jaml.register('main', function(data) {
-  div({cls: 'main'},
-    h1("Your Shopping Cart"),
-    p(
-      span("Currently "),
-      span({id: 'online_status'}, data.status)
-    ),
-    
-    p(
-      span({cls: 'update'}, "Viewing cached data. Retrieving up to date info...")
-    ),
-    
-    ul({cls: 'items'},
-      Jaml.render('item', data.items)
-    ),
-
-    div(
-      a({id: 'clear', href: '#/clear'}, "Clear Items")
-    ),
-    
-    a({href: '/about'}, 'About')
-  );
-});
-
-Jaml.register('/items/:id', function(item) {
-  div({cls: 'item'},
-    h1("Item " + item.id),
-    a({href: '#/'}, "Back"),
-
-    form({action: '#/items/' + item.id, method: 'post'},
-      label({'for': 'some_text_input'}, "Enter Text"),
-      input({type: 'text', name: 'text', id: 'some_text_input', value: item.text}),
-      input({type: 'submit', value: 'Save'})
-    )
-  );
-});
+/////////////////////////////////////////////////////////////////////////////////////
 
 App = function ($) {  
   var onlineStatus = function () {
     if (navigator.onLine) {
-      return "Online";
+      return "Online";  
     } else {
       return "Offline";
     }    
@@ -65,15 +45,17 @@ App = function ($) {
   };
 
   var loadRemoteItems = function () {
+    console.log("Attempting to load remote items")
     $.ajax({
       url: '/api/items',
       type: 'GET',
       complete: function (xhr, textStatus) {
-        if (xhr.status === 200) {      
-          console.log("Got response: " + xhr.status);
+        if (xhr.status === 200) {
           var items = JSON.parse(xhr.responseText);
+          
+          // Use a timeout to simulate long retrieve times.
           setTimeout(function () {
-            setLocalItems(items);            
+            setLocalItems(items);
             $('.update').html("Updated info available. <a class='refresh' href=''>Refresh</a>");
             $('.refresh').click(function () {
               $('.update').remove();
@@ -122,7 +104,7 @@ App = function ($) {
             setLocalItem(item);
             callback(item);
           } else {
-            console.log("Failed to load item from server.");
+            console.log("Failed to load item from server, try getting it locally");
             callback(getLocalItem(id));
           }
         }
@@ -186,12 +168,10 @@ App = function ($) {
       this.use(Sammy.Title);
       
       this.get('#/', function (context) {
-        this.title("Shopping Cart");
+        this.title("Shopping List");
         
         // Display whatever is currently in local storage
         this.swap(renderMainTemplate());
-        
-        $('#some_text_input').focus();
         
         // Request the latest data from the server
         loadRemoteItems();
@@ -202,9 +182,10 @@ App = function ($) {
         
         this.title("Item " + id);
         
+        var sammy = this;
         loadItem(id, function(item) {
-          var $html = $(Jaml.render('/items/:id', item));
-          $('.container').html($html);
+          sammy.swap(Jaml.render('/items/:id', item));
+          $('#some_text_input').focus();
         });
       });
       
@@ -219,28 +200,23 @@ App = function ($) {
             that.redirect('#/');
           },
           error: function() {
-            alert('the update failed');
+            console.log("Couldn't save data remotely")
           }
         });
       });
       
       this.get('#/clear', function (context) {
         alert('not yet');
-        //storeItems([]);
         this.redirect('#/');
       });
       
-      // this.bind('updated-data-available', function () {
-      //   draw({upToDate: true});
-      // });
-      
-      this.bind('run', function () {
-        
+      this.bind('run', function () {        
         // Fired when the app is run. Good place for initialization
       });
     });
   }
   
+  // Google Gears support - probably broken right now //////////////////////////////////////////
   var localServer = null;
   var gearsStore = null;
   
@@ -251,10 +227,10 @@ App = function ($) {
     }
     
     if (!window.google || !google.gears) {
-      alert("NOTE: you Must install Gears first.")
+      alert("NOTE: You must install Gears first.")
      } else {
        localServer = google.gears.factory.create("beta.localserver");
-       gearsStore = localServer.createManagedStore("lifeconnect_prototype");
+       gearsStore = localServer.createManagedStore("prototyping");
        createStore(gearsStore);
      }
   };
@@ -281,6 +257,7 @@ App = function ($) {
       }
     }, 500);  
   }
+  ////////////////////////////////////////////////////////////////////////////////////
   
   return {
     load: function() {
@@ -288,6 +265,9 @@ App = function ($) {
         subscribeToOnlineStatusEvents();
         initGears();
         var app = initSammy();
+        
+        // Add a delay so the loading message can be seen before 
+        // the page is rendered by javascript
         setTimeout(function () {
           app.run('#/')
         }, 2000);
@@ -295,4 +275,49 @@ App = function ($) {
     }
   }
 }(jQuery);
+
+////// Jaml templates ////////////////////////////////////////////
+Jaml.register('item', function(item) {
+  li({cls: 'item'},
+    a({href: '#/items/' + item.id}, item.text)
+  );
+});
+
+Jaml.register('main', function(data) {
+  div({cls: 'main'},
+    h1("My Shopping List"),
+    p(
+      span("Currently "),
+      span({id: 'online_status'}, data.status)
+    ),
+    
+    p(
+      span({cls: 'update'}, "Viewing cached data. Retrieving up to date info...")
+    ),
+    
+    ul({cls: 'items'},
+      Jaml.render('item', data.items)
+    ),
+
+    div(
+      a({id: 'clear', href: '#/clear'}, "Clear Items")
+    ),
+    
+    a({href: '/about'}, 'About')
+  );
+});
+
+Jaml.register('/items/:id', function(item) {
+  div({cls: 'item'},
+    h1("Item " + item.id),
+    a({href: '#/'}, "Back"),
+
+    form({action: '#/items/' + item.id, method: 'post'},
+      label({'for': 'some_text_input'}, "Enter Text"),
+      input({type: 'text', name: 'text', id: 'some_text_input', value: item.text}),
+      input({type: 'submit', value: 'Save'})
+    )
+  );
+});
+////////////////////////////////////////////////////////////////////////////////////////
 
