@@ -16,7 +16,7 @@ I wrote about some of the things learned while writing this in a [blog post](htt
 Usage
 --------
 
-If you want to run the application to see it in action you need to have Bundler installed. Then you can `bundle install` or `rake gems` which does the same thing. Once the gems are installed `rake run` will start the app on port 4567. 
+If you want to run the application to see it in action you need to have [Bundler](http://gembundler.com/) installed. Then you can `bundle install` or `rake gems` which does the same thing. Once the gems are installed `rake run` will start the app on port 4567. 
 
 Load `http://localhost:4567` in your browser (most recent version of any browser should work). Once the browser has cached all of the files (very quick on localhost) you can kill the web server and refresh the page and the application should still function. 
 
